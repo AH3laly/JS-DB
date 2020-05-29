@@ -11,24 +11,84 @@
 namespace JSDB;
 define("JSDB_ROOT", __DIR__);
 require __DIR__.'/app/jsdb.php';
-try {
-    $JSDB = new API();
-    $JSDB->initialize();
-    if(Config::get("allow_basic_commands") && $JSDB->isBasicCommand()){
-        // Will handle basic command
-        $JSDB->handleRequest();
-    } else if($commandName = $JSDB->getParam("command")){
-        // Will handle custom command
-        include JSDB_ROOT.'/app/custom.php';
-        $actionName = "action_".$JSDB->getParam("command");
-        if(function_exists($actionName)){
-            $actionName();
-        } else {
-            throw new \Exception("Command not found");
+
+class AJAX {
+    private $handler = null;
+    public function __construct(){
+        $this->request = new Request();
+    }
+    private function isBasicCommand(){
+        $basicCommands = ["select", "insert", "update", "delete"];
+        return in_array($this->request->getParam("command"), $basicCommands);
+    }
+    public function initialize(){
+        try {
+            if(Config::get("allow_basic_commands") && $this->isBasicCommand()){
+                // Will handle basic command
+                $handler = new API();
+                $handler->initialize();
+                $handler->handleRequest();
+                $handler->shutdown();
+            } else if($commandName = $this->request->getParam("command")){
+                
+                $commandInfo = $this->extractCommand($commandName);
+                if($commandInfo["controller"] == ""){
+                    // Load default controller
+                    $controllerToLoad = JSDB_ROOT.'/app/custom.php';
+                } else {
+                    // Load requested controller
+                    $controllerToLoad = JSDB_ROOT.'/app/custom/'.strtolower($commandInfo["controller"]).'.php';
+                }
+                if(!file_exists($controllerToLoad)){
+                    throw new \Exception("Invalid Controller");
+                } else {
+                    require_once $controllerToLoad;
+                }
+                if(!class_exists('JSDB\\'.$commandInfo["class"])){
+                    throw new \Exception("Invalid Class");
+                }
+                $classToLoad = "JSDB\\{$commandInfo['class']}";
+                $handler = new $classToLoad();
+                if(!method_exists($handler, $commandInfo["method"])){
+                    throw new \Exception("Command not found");
+                }
+                $handler->initialize();
+                $handler->{$commandInfo["method"]}();
+                $handler->shutdown();
+            }
+        } catch(JSDBException $e){
+            $response = new Response();
+            $response->setError(1)->setCode($e->getLine())->addMessage($e->getMessage(), "exception")->setData($e->getData())->send();
         }
     }
-    $JSDB->shutdown();
-} catch(\Exception $e){
-    $response = new Response();
-    $response->setError(1)->setCode($e->getLine())->addMessage($e->getMessage(), "exception")->send();
+    private function extractCommand($commandName){
+        
+        // Validate command
+        if(!preg_match("/^[a-z0-9]+([a-z0-9]+\.)*[a-z0-9]+$/i", $commandName)){
+            throw new \Exception("Bad Command");
+        }
+        $commandParts = explode(".", $commandName);
+        if(count($commandParts) === 1){
+            $commandInfo = [
+                "method" => "action_".$commandParts[0],
+                "class" => "Defaults",
+                "controller" => "defaults"
+            ];
+        } else if(count($commandParts) >= 2){
+            $commandInfo = [
+                "method" => "execute",
+                "class" => $commandParts[count($commandParts)-1],
+                "controller" => implode("/", $commandParts)
+            ];
+        } else {
+            throw new \Exception("Invalid command Parts");
+        }
+
+        $commandInfo["class"] = ucfirst(strtolower($commandInfo["class"]));
+
+        return $commandInfo;
+    }
 }
+
+$AJAX = new AJAX();
+$AJAX->initialize();
