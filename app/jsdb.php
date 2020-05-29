@@ -15,6 +15,7 @@ if(!defined("JSDB_ROOT")) die("Invalid Request");
 header("Access-Control-Allow-Origin: *");
 define("JSDB_DATA", JSDB_ROOT."/var/data/");
 define("JSDB_LOG", JSDB_ROOT."/var/log/");
+define("JSDB_CUSTOMS", __DIR__."/custom/");
 
 class Config {
     private static $configuration = [
@@ -73,6 +74,20 @@ class Core {
     }
     protected function initialize(){
         $this->logger = new Logger();
+    }
+}
+
+class JSDBException extends \Exception{
+    private $data = [];
+    public function __construct($errorMessage, $errorCode, $data = []){
+        parent::__construct($errorMessage, $errorCode);
+        $this->setData($data);
+    }
+    private function setData($data){
+        $this->data = $data;
+    }
+    public function getData(){
+        return $this->data;
     }
 }
 
