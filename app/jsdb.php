@@ -691,17 +691,13 @@ class API_Validator {
 }
 
 class API extends JSDB {
-    private $request = [];
+    public $request = null;
+    private $validator = null;
     public function __construct(){
         self::authenticate();
         parent::__construct();
-        $this->request = $_REQUEST;
-    }
-    public function getRequest(){
-        return $this->request;
-    }
-    public function getParam($paramName){
-        return isset($this->request[$paramName]) ? $this->request[$paramName] : false;
+        $this->request = new Request();
+        $this->validator = new Validator($this->request);
     }
     private function authenticate(){
         if(!Security::isAuthenticated()){
@@ -710,14 +706,9 @@ class API extends JSDB {
             }
         }
     }
-    public function isBasicCommand(){
-        $basicCommands = ["select", "insert", "update", "delete"];
-        return in_array($this->request["command"], $basicCommands);
-    }
     public function handleRequest(){
-        API_Validator::validate($this->request);
-        
-        switch($this->request["command"]){
+        API_Validator::validate($this->request->getRequest());
+        switch($this->getParam("command")){
             case "select":
                 $this->select();
             break;
@@ -733,15 +724,15 @@ class API extends JSDB {
         }
     }
     private function hasWhere(){
-        if(isset($this->request["where"]) && count($this->request["where"]) > 0){
+        if(is_array($this->getParam("where")) && count($this->getParam("where")) > 0){
             return true;
         }
         return false;
     }
     private function select(){
-        $query = $this->schema->table($this->request["table"]);
+        $query = $this->schema->table($this->getParam("table"));
         if($this->hasWhere()){
-            foreach($this->request["where"] as $w){
+            foreach($this->getParam("where") as $w){
                 if(count($w) == 3){
                     $query->where($w[0], $w[1], $w[2]);
                 } else if(count($w) == 4) {
@@ -749,20 +740,20 @@ class API extends JSDB {
                 }
             }
         }
-        if(isset($this->request["columns"]) && is_array($this->request["columns"])){
-            $query->columns($this->request["columns"]);
+        if(is_array($this->getParam("columns")) && is_array($this->getParam("columns"))){
+            $query->columns($this->getParam("columns"));
         }
         $data = $query->select()->fetchAll();
         $this->response->setData($data)->send();
     }
     private function insert(){
-        $query = $this->schema->table($this->request["table"])->insert($this->request["values"]);
+        $query = $this->schema->table($this->getParam("table"))->insert($this->getParam("values"));
         $this->response->setData(1)->send();
     }
     private function update(){
-        $query = $this->schema->table($this->request["table"]);
+        $query = $this->schema->table($this->getParam("table"));
         if($this->hasWhere()){
-            foreach($this->request["where"] as $w){
+            foreach($this->getParam("where") as $w){
                 if(count($w) == 3){
                     $query->where($w[0], $w[1], $w[2]);
                 } else if(count($w) == 4) {
@@ -770,13 +761,13 @@ class API extends JSDB {
                 }
             }
         }
-        $query->update($this->request["values"]);
+        $query->update($this->getParam("values"));
         $this->response->setData(1)->send();
     }
     private function delete(){
-        $query = $query = $this->schema->table($this->request["table"]);
+        $query = $query = $this->schema->table($this->getParam("table"));
         if($this->hasWhere()){
-            foreach($this->request["where"] as $w){
+            foreach($this->getParam("where") as $w){
                 if(count($w) == 3){
                     $query->where($w[0], $w[1], $w[2]);
                 } else if(count($w) == 4) {
@@ -786,5 +777,307 @@ class API extends JSDB {
         }
         $query->delete();
         $this->response->setData(1)->send();
+    }
+    protected function validate($rules){
+        return $this->validator->validate($rules);
+    }
+    protected function getParam($param){
+        return $this->request->getParam($param);
+    }
+    protected function getRequest($param){
+        return $this->request;
+    }
+}
+
+class Request {
+    public function __construct(){
+        $this->request = $_REQUEST;
+    }
+    public function getParam($paramName){
+        return isset($this->request[$paramName]) ? $this->request[$paramName] : false;
+    }
+    public function getRequest(){
+        return  $this->request;
+    }
+}
+
+class Validator {
+    private $result = [];
+    private $request = null;
+    public function __construct(Request $request){
+        $this->request = $request;
+    }
+    private function isValidNumber($numberToCheck){
+        return preg_match("/^[0-9]+$/", $numberToCheck);
+    }
+    private function _required($paramName, $paramValue, $ruleParams) {
+        if(empty($paramValue)) {
+            $this->setError($paramName, sprintf("%s is required.", $paramName));
+        }
+        return $this;
+    }
+    private function _maxLength($paramName, $paramValue, $ruleParams) {
+        // The first parameter must be sent
+        if(!isset($ruleParams[0]) || !$this->isValidNumber($ruleParams[0])){
+            throw new \Exception("Invalid _maxLength parameter.");
+        }
+        if(strlen($paramValue) > $length) {
+            $this->setError($paramName, sprintf("%s maximum length is %d.", $paramName, $ruleParams[0]));
+        }
+        return $this;
+    }
+    private function _minLength($paramName, $paramValue, $ruleParams) {
+        // The first parameter must be sent
+        if(!isset($ruleParams[0]) || !$this->isValidNumber($ruleParams[0])){
+            throw new \Exception("Invalid _minLength parameter.");
+        }
+        if(strlen($paramValue) < $ruleParams[0]) {
+            $this->setError($paramName, sprintf("%s minimum length is %d.", $paramName, $ruleParams[0]));
+        }
+        return $this;
+    }
+    private function _length($paramName, $paramValue, $ruleParams) {
+        // The first parameter must be sent
+        if(!isset($ruleParams[0]) || !$this->isValidNumber($ruleParams[0])){
+            throw new \Exception("Invalid _length parameter.");
+        }
+        if(strlen($paramValue) != $ruleParams[0]) {
+            $this->setError($paramName, sprintf("%s length must be %d.", $paramName, $ruleParams[0]));
+        }
+        return $this;
+    }
+    private function _maxNumber($paramName, $paramValue, $ruleParams) {
+        // The first parameter must be sent
+        if(!isset($ruleParams[0]) || !$this->isValidNumber($ruleParams[0])){
+            throw new \Exception("Invalid _maxNumber parameter.");
+        }
+        if(!$this->isValidNumber($paramValue)){
+            throw new \Exception("Invalid _maxNumber value for " . $paramName);
+        }
+        if($paramValue > $ruleParams[0]) {
+            $this->setError($paramName, sprintf("%s must be less than %d.", $paramName, $ruleParams[0]));
+        }
+        return $this;
+    }
+    private function _minNumber($paramName, $paramValue, $ruleParams) {
+        // The first parameter must be sent
+        if(!isset($ruleParams[0]) || !$this->isValidNumber($ruleParams[0])){
+            throw new \Exception("Invalid _maxNumber parameter.");
+        }
+        if(!$this->isValidNumber($paramValue)){
+            throw new \Exception("Invalid _minNumber value for " . $paramName);
+        }
+        if($paramValue < $ruleParams[0]) {
+            $this->setError($paramName, sprintf("%s must be greater than %d.", $paramName, $ruleParams[0]));
+        }
+        return $this;
+    }
+    private function _hasSpace($paramName, $paramValue, $ruleParams) {
+        if(strpos($paramValue, " ") === false){
+            $this->setError($paramName, sprintf("%s does not contain spaces.", $paramName));
+        }
+        return $this;
+    }
+    private function _hasCharacter($paramName, $paramValue, $ruleParams) {
+        if(!preg_match("/[a-zA-Z]/", $paramValue)){
+            $this->setError($paramName, sprintf("%s does not contain characters.", $paramName));
+        }
+        return $this;
+    }
+    private function _hasNumber($paramName, $paramValue, $ruleParams) {
+        if(!preg_match("/[0-9]/", $paramValue)){
+            $this->setError($paramName, sprintf("%s does not contain numbers.", $paramName));
+        }
+        return $this;
+    }
+    private function _isCharacter($paramName, $paramValue, $ruleParams) {
+        if(!preg_match("/^[a-zA-Z]+$/", $paramValue)) {
+            $this->setError($paramName, sprintf("%s must be characters.", $paramName));
+        }
+        return $this;
+    }
+    private function _isNumber($paramName, $paramValue, $ruleParams) {
+        if(!preg_match("/^[0-9]+$/", $paramValue)) {
+            $this->setError($paramName, sprintf("%s must be number.", $paramName));
+        }
+        return $this;
+    }
+    private function _contains($paramName, $paramValue, $ruleParams) {
+        // The first parameter must be sent
+        if(!isset($ruleParams[0]) || empty($ruleParams[0])){
+            throw new \Exception("Invalid _contains parameter.");
+        }
+        if(strpos($paramValue, $ruleParams[0]) === false){
+            $this->setError($paramName, sprintf("%s does not contain %s.", $paramName, $ruleParams[0]));
+        }
+        return $this;
+    }
+    private function _email($paramName, $paramValue, $ruleParams) {
+        if(!filter_var($paramValue, FILTER_VALIDATE_EMAIL)) {
+            $this->setError($paramName, sprintf("%s is not valid email.", $paramName));
+        }
+        return $this;
+    }
+    // TODO Stop Here
+    private function _domainName($paramName, $paramValue, $ruleParams) {
+        if(!preg_match("/^[a-zA-Z0-9][a-zA-Z0-9-]+(-?)[a-zA-Z0-9]+\.[a-zA-Z]{2,}$/", $paramValue)) {
+            $this->setError($paramName, sprintf("%s is not valid domain name.", $paramName));
+        }
+        return $this;
+    }
+    private function _beginWith($paramName, $paramValue, $ruleParams) {
+        // The first parameter must be sent
+        if(!isset($ruleParams[0]) || empty($ruleParams[0])){
+            throw new \Exception("Invalid _beginWith parameter.");
+        }
+        $len = strlen($ruleParams[0]);
+        if(substr($paramValue, 0, $len) === $ruleParams[0]) {
+            return $this;
+        }
+        $this->setError($paramName, sprintf("%s doesn't begin with %s", $paramName, $ruleParams[0]));
+        return $this;
+    }
+    private function _endWith($paramName, $paramValue, $ruleParams) {
+        // The first parameter must be sent
+        if(!isset($ruleParams[0]) || empty($ruleParams[0])){
+            throw new \Exception("Invalid _beginWith parameter.");
+        }
+        $len = strlen($ruleParams[0]);
+        if((substr($paramValue, -$len) === $ruleParams[0])) {
+            return $this;
+        }
+        $this->setError($paramName, sprintf("%s doesn't end with %s", $paramName, $ruleParams[0]));
+        return $this;
+    }
+    private function _equal($paramName, $paramValue, $ruleParams) {
+        // The first parameter must be sent
+        if(!isset($ruleParams[0]) || empty($ruleParams[0])){
+            throw new \Exception("Invalid _equal parameter.");
+        }
+        if($paramValue === $ruleParams[0]) {
+            return $this;
+        }
+        $this->setError($paramName, sprintf("%s doesn't equal %s.", $paramName, $ruleParams[0]));
+        return $this;
+    }
+    private function _greater($paramName, $paramValue, $ruleParams) {
+        if(!isset($ruleParams[0]) || !$this->isValidNumber($ruleParams[0])){
+            throw new \Exception("Invalid _greater parameter.");
+        }
+        if(!$this->isValidNumber($paramValue)){
+            $this->setError($paramName, sprintf("%s must be a number.", $paramName));
+            return $this;
+        }
+        if($paramValue > $ruleParams[0]) {
+            return $this;
+        }
+        $this->setError($paramName, sprintf("%s must be breater than %d.", $paramName, $ruleParams[0]));
+        return $this;
+    }
+    private function _lower($paramName, $paramValue, $ruleParams) {
+        if(!isset($ruleParams[0]) || !$this->isValidNumber($ruleParams[0])){
+            throw new \Exception("Invalid _lower parameter.");
+        }
+        if(!$this->isValidNumber($paramValue)){
+            $this->setError($paramName, sprintf("%s must be a number.", $paramName, $ruleParams[0]));
+            return $this;
+        }
+        if($paramValue < $ruleParams[0]) {
+            return $this;
+        }
+        $this->setError($paramName, sprintf("%s must be lower than %d.", $paramName, $ruleParams[0]));
+        return $this;
+    }
+    private function checkRule($param, $rule) {
+        $ruleInfo = explode(":", $rule);
+        $ruleName = array_shift($ruleInfo);
+        $ruleParams = $ruleInfo;
+        $paramName = $param;
+        $paramValue = $this->request->getParam($paramName);
+        if($ruleName){
+            $this->_required($paramName, $paramValue, $ruleParams);
+            return;
+        }
+        if(empty($paramValue)){
+            return;
+        }
+        switch($ruleName){
+            case 'max-length':
+                $this->_maxLength($paramName, $paramValue, $ruleParams);
+            break;
+            case 'min-length':
+                $this->_minLength($paramName, $paramValue, $ruleParams);
+            break;
+            case 'length':
+                $this->_length($paramName, $paramValue, $ruleParams);
+            break;
+            case 'max-number':
+                $this->_maxNumber($paramName, $paramValue, $ruleParams);
+            break;
+            case 'min-number':
+                $this->_minNumber($paramName, $paramValue, $ruleParams);
+            break;
+            case 'has-space':
+                $this->_hasSpace($paramName, $paramValue, $ruleParams);
+            break;
+            case 'has-character':
+                $this->_hasCharacter($paramName, $paramValue, $ruleParams);
+            break;
+            case 'has-number':
+                $this->_hasNumber($paramName, $paramValue, $ruleParams);
+            break;
+            case 'is-character':
+                $this->_isCharacter($paramName, $paramValue, $ruleParams);
+            break;
+            case 'is-number':
+                $this->_isNumber($paramName, $paramValue, $ruleParams);
+            break;
+            case 'contains':
+                $this->_contains($paramName, $paramValue, $ruleParams);
+            break;
+            case 'email':
+                $this->_email($paramName, $paramValue, $ruleParams);
+            break;
+            case 'domain-name':
+                $this->_domainName($paramName, $paramValue, $ruleParams);
+            break;
+            case 'begin-with':
+                $this->_beginWith($paramName, $paramValue, $ruleParams);
+            break;
+            case 'end-with':
+                $this->_endWith($paramName, $paramValue, $ruleParams);
+            break;
+            case 'equal':
+                $this->_equal($paramName, $paramValue, $ruleParams);
+            break;
+            case 'greater':
+                $this->_greater($paramName, $paramValue, $ruleParams);
+            break;
+            case 'lower':
+                $this->_lower($paramName, $paramValue, $ruleParams);
+            break;
+            default:
+                throw new \Exception("Invalid Validation Rule " . $ruleName);
+        }
+    }
+    private function checkRules($param, $rules) {
+        array_walk($rules, function($rule, $key, $param){
+            $this->checkRule($param, $rule);
+        }, $param);
+    }
+   private function setError($paramName, $ruleName) {
+        array_push($this->result, [$paramName => $ruleName]);
+    }
+    public function validate($rules) {
+        array_walk($rules, function($rules, $parameter){
+            $p = explode(",", $parameter);
+            $r = explode("|", $rules);
+            array_walk($p, function($param, $key, $rules){
+                $this->checkRules($param, $rules);
+            }, $r);
+        });
+        if(count($this->result) > 0){
+            throw new JSDBException("Validation Failed", __LINE__, $this->result);
+        }
     }
 }
