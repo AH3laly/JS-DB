@@ -154,9 +154,9 @@ JSDB.deleteAll = function(){
 JSDB.addUser = function(){
     var jsdb_query = {
         "command":"addUser",
-        "name":"abdo",
+        "name":"AbdelrahmanHelaly",
         "email": "abdo@yahoo.com",
-        "password": "sd5ewsz68wd4g6fds5a"
+        "password": "SDksdjsdKSDOSDksdllDFsdk"
     }
     $.ajax({
         url: JSDB.API,
