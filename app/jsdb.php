@@ -821,7 +821,7 @@ class Validator {
         if(!isset($ruleParams[0]) || !$this->isValidNumber($ruleParams[0])){
             throw new \Exception("Invalid _maxLength parameter.");
         }
-        if(strlen($paramValue) > $length) {
+        if(strlen($paramValue) > $ruleParams[0]) {
             $this->setError($paramName, sprintf("%s maximum length is %d.", $paramName, $ruleParams[0]));
         }
         return $this;
@@ -994,7 +994,7 @@ class Validator {
         $ruleParams = $ruleInfo;
         $paramName = $param;
         $paramValue = $this->request->getParam($paramName);
-        if($ruleName){
+        if($ruleName === "required"){
             $this->_required($paramName, $paramValue, $ruleParams);
             return;
         }
