@@ -12,11 +12,11 @@
 namespace JSDB;
 
 class Defaults extends API {
-
+    
     public function __construct(){
         parent::__construct();
     }
-    
+
     public function example_sendError(){
         $this->response
             ->setError(1)
@@ -31,26 +31,53 @@ class Defaults extends API {
     
     // Add User
     public function action_addUser(){
+
+        // validate the Action
+        $this->validate([
+            "name"=>"required|min-length:10|max-length:50|is-character",
+            "email"=>"required|email|max-length:255",
+            "password" => "required|has-number|has-character|min-length:8|max-length:50"
+        ]);
+
+        // Execute the Action
         $data = $this->schema->table("user")->insert([
             "name" => $this->request->getParam("name"),
             "email" => $this->request->getParam("email"),
             "password" => md5($this->request->getParam("password"))
         ]);
+
         $this->response->addMessage("User Added", "info")->setData(1)->send();
     }
     
     // Add and Get User
     public function action_addGetUser(){
+
+        // validate the Action
+        $this->validate([
+            "name"=>"required|min-length:10|max-length:50|is-character",
+            "email"=>"required|email|max-length:255",
+            "password" => "required|has-number|has-character|min-length:8|max-length:50"
+        ]);
+
+        // Execute the Action
         $data = $this->schema->table("user")->insert([
             "name" => $this->request->getParam("name"),
             "email" => $this->request->getParam("email"),
             "password" => md5($this->request->getParam("password"))
         ])->select()->fetchAll();
+
         $this->response->addMessage("User Added", "info")->setData($data)->send();
     }
     
     // Get User
     public function action_getUser(){
+
+        // validate the Action
+        $this->validate([
+            "name"=>"required|min-length:10|max-length:50|is-character"
+        ]);
+
+        // Execute the Action
         $data = $this->schema->table("user")
         ->where("name", "==", $this->request->getParam("name"))
         ->select()->fetchAll();
@@ -65,6 +92,14 @@ class Defaults extends API {
     
     // Update User
     public function action_updateUser(){
+
+        // validate the Action
+        $this->validate([
+            "name"=>"required|min-length:10|max-length:50|is-character",
+            "email"=>"required|email|max-length:255"
+        ]);
+
+        // Execute the Action
         $data = $this->schema->table("user")
             ->where("name", "==", $this->request->getParam("name"))
             ->update(["email"=>$this->request->getParam("email")]);
@@ -73,6 +108,14 @@ class Defaults extends API {
     
     // Update and Get User
     public function action_updateGetUser(){
+
+        // validate the Action
+        $this->validate([
+            "name"=>"required|min-length:10|max-length:50|is-character",
+            "email"=>"required|email|max-length:255"
+        ]);
+
+        // Execute the Action
         $data = $this->schema->table("user")
             ->where("name", "==", $this->request->getParam("name"))
             ->update(["email"=>$this->request->getParam("email")])->select()->fetchAll();
@@ -81,6 +124,13 @@ class Defaults extends API {
     
     // Delete User
     public function action_deleteUser(){
+
+        // validate the Action
+        $this->validate([
+            "name"=>"required|min-length:10|max-length:50|is-character"
+        ]);
+
+        // Execute the Action
         $data = $this->schema->table("user")
         ->where("name", "==", $this->request->getParam("name"))
         ->delete();
