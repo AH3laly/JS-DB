@@ -23,29 +23,57 @@ class Config {
         /**
          * Display all errors and warnings
          */
-        "debug_mode" => 0,
+        "debug_mode" => 1,
         /**
          * Execute all commands on testing database "test.jsdb"
          */
-        "testing_mode" => 0,
+        "testing_mode" => 1,
         
         // Enable or disable Logging
-        "logging" => 0,
+        "logging" => 1,
         /**
          * Basic commands are (select, insert, update, delete)
          * If basic commands are disabled, then only custom actions defined in custom.php will be allowed
          */
-        "allow_basic_commands" => 0,
+        "allow_basic_commands" => 1,
         
-        // Tables in db_write_protected_tables are not readable anyway
+        // Tables in db_read_protected_tables are not readable anyway
         "db_read_protected_tables" => ["__jsdb_core"],
         
         // Tables in db_write_protected_tables are not writable anyway
         "db_write_protected_tables" => ["__jsdb_core"],
 
         // Domains allowed to hit the API (Referers)
-        "allowed_domains" => []
+        "allowed_domains" => [],
+
+        // Table Rules
+        "table_rules" => [
+            "user" => ["select", "insert", "update", "delete"]
+        ],
+
+        // Field Rules
+        "filed_rules" => [
+            "user.id"=>"required|is-number|min-number:1",
+            "user.name"=>"required|is-character|min-length:10|max-length:50",
+        ]
+
+        
     ];
+    
+    private static $table_rules;
+    private static $field_rules;
+
+    private static function initialize(){
+
+        // Extract Table Rules to Array
+        if(!is_array(self::$table_rules)){
+            self::$table_rules = [];
+            array_walk(function($v, $k){
+                self::$table_rules[$k] = explode("|", $v);
+            }, self::$configuration["table_rules"]);
+        }
+    }
+
     public static function isDebugMode(){
         return self::get("debug_mode");
     }
@@ -57,6 +85,30 @@ class Config {
     }
     public static function isWriteProtectedTable($table){
         return in_array($table, self::$configuration["db_write_protected_tables"]);
+    }
+    public static function isInsertAllowed($table){
+        if(!is_array(self::$table_rules[$table])){
+            return false;
+        }
+        return in_array("insert", self::$table_rules[$table]);
+    }
+    public static function isSelectAllowed($table){
+        if(!is_array(self::$table_rules[$table])){
+            return false;
+        }
+        return in_array("select", self::$table_rules[$table]);
+    }
+    public static function isUpdateAllowed($table){
+        if(!is_array(self::$table_rules[$table])){
+            return false;
+        }
+        return in_array("update", self::$table_rules[$table]);
+    }
+    public static function isDeleteAllowed($table){
+        if(!is_array(self::$table_rules[$table])){
+            return false;
+        }
+        return in_array("delete", self::$table_rules[$table]);
     }
     public static function get($key){
         return self::$configuration[$key];
@@ -478,8 +530,8 @@ class Schema extends Core {
         return $this;
     }
     public function insert($values){
-        if(Config::isWriteProtectedTable($this->table)){
-            throw new \Exception("Table ".$this->table." is write protected.");
+        if(!Config::isInsertAllowed($this->table)){
+            throw new \Exception("Table ".$this->table." is not insertable.");
         }
         $this->open();
         if(!isset($this->database[$this->table]) || !is_array($this->database[$this->table])){
@@ -490,8 +542,8 @@ class Schema extends Core {
         return $this;
     }
     public function update($values){
-        if(Config::isWriteProtectedTable($this->table)){
-            throw new \Exception("Table ".$this->table." is write protected.");
+        if(!Config::isUpdateAllowed($this->table)){
+            throw new \Exception("Table ".$this->table." is not updatable.");
         }
         $this->open();
         if(!isset($this->database[$this->table]) || !is_array($this->database[$this->table])){
@@ -515,8 +567,8 @@ class Schema extends Core {
      * @$where array of criteria
      */
     public function select($limit = 100){
-        if(Config::isReadProtectedTable($this->table)){
-            throw new \Exception("Table ".$this->table." is read protected.");
+        if(!Config::isSelectAllowed($this->table)){
+            throw new \Exception("Table ".$this->table." is not readable.");
         }
         $this->open();
         if(!isset($this->database[$this->table]) || !is_array($this->database[$this->table])){
@@ -552,8 +604,8 @@ class Schema extends Core {
         return count($this->resultArray);
     }
     public function delete(){
-        if(Config::isWriteProtectedTable($this->table)){
-            throw new \Exception("Table ".$this->table." is write protected.");
+        if(!Config::isDeleteAllowed($this->table)){
+            throw new \Exception("Table ".$this->table." is not deletable.");
         }
         $this->open();
         if(!isset($this->database[$this->table]) || !is_array($this->database[$this->table])){
@@ -603,7 +655,7 @@ class JSDB extends Core {
 }
 
 class API_Validator {
-    
+
     private static $command = null;
     private static $table = null;
     private static $where = [];

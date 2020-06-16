@@ -1,5 +1,24 @@
 var JSDB = {};
 JSDB.API = "../../ajax.php";
+JSDB.test = function(){
+    var jsdb_query = {
+        "command":"insert",
+        "table":"page.View",
+        "values":{"pageId" : 1, "views": 50}
+    }
+    $.ajax({
+        url: JSDB.API,
+        data: jsdb_query,
+        dataType: 'json',
+        method: 'post'
+    }).done(function(data){
+        JSDB.log([
+            "<b>Executing:</b> " + JSON.stringify(jsdb_query),
+            "<b>Result:</b> " + JSON.stringify(data)
+        ]);
+    })
+};
+
 JSDB.log = function(messages){
     var styles = [
         "border:solid 1px red",
@@ -294,6 +313,8 @@ JSDB.deleteUsers = function(){
 
 // Start Execution
 $(document).ready(function(){
+    JSDB.test();
+    return;
     // Execute Basic commands
     setTimeout(()=>{
         JSDB.insert(1); JSDB.insert(2); JSDB.insert(3); JSDB.insert(4); JSDB.insert(5);
