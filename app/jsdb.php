@@ -345,6 +345,31 @@ class Response {
 }
 
 /**
+ * Validate Schima Operations
+ */
+class SchemaValidation {
+    
+    public function validateTable($tableName){
+        if(!preg_match("/^[a-zA-Z0-9_]+$/", $tableName)){
+            throw new \Exception("Bad table name {$tableName}, Valid: Caracters Numbers _");
+        }
+    }
+
+    public function validateColumns($columns = []){
+
+        if(!is_array($columns)){
+            throw new \Exception("Invalid columns assignment.");
+        }
+        array_walk(function($v){
+            if(!preg_match("/^[a-zA-Z0-9_]+$/", $v)){
+                throw new \Exception("Bad columns name {$v}, Valid: Caracters Numbers _");
+            }
+        }, $columns);
+    }
+
+}
+
+/**
  * Database Class
  */
 class Schema extends Core {
@@ -355,12 +380,18 @@ class Schema extends Core {
     private $where = [];
     private $resultArray = [];
     private $valid_operators = ["==", "<=", ">=",">","<"];
+    private $schema_validator;
     public function __construct(){
+
+        //Initialize Schema Validator
+        $this->schema_validator = new SchemaValidation();
+
         if(Config::get("testing_mode")){
             $this->database_file = JSDB_DATA . "test.jsdb";
         } else {
             $this->database_file = JSDB_DATA . "main.jsdb";
         }
+
         // Check if Main Database Exists
         if(!$this->isDatabaseExists()){
             $this->initializeMainDatabase();
@@ -495,11 +526,13 @@ class Schema extends Core {
         }
     }
     public function table($table){
+        $this->schema_validator->validateTableName($table)
         $this->reset();
         $this->table = $table;
         return $this;
     }
     public function columns($columns){
+        $this->schema_validator->validateColumns($columns)
         $this->columns = $columns;
         return $this;
     }
@@ -669,8 +702,8 @@ class API_Validator {
         self::$command = $request["command"];
     }
     private static function validateTable($request){
-        if(!isset($request["table"]) || !preg_match("/^[a-zA-Z0-9_]+(\.)*[a-zA-Z0-9_]+$/", $request["table"])){
-            throw new \Exception("Bad table name, Valid: Caracters Numbers _ . ");
+        if(!isset($request["table"]) || $request["table"]==""){
+            throw new \Exception("Table name is required");
         }
         self::$table = $request["table"];
     }
