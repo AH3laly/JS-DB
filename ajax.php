@@ -70,9 +70,9 @@ class AJAX {
         $commandParts = explode(".", $commandName);
         if(count($commandParts) === 1){
             $commandInfo = [
-                "method" => "action_".$commandParts[0],
-                "class" => "Defaults",
-                "controller" => "defaults"
+                "method" => "execute",
+                "class" => $commandName,
+                "controller" => "default/".$commandName
             ];
         } else if(count($commandParts) >= 2){
             $commandInfo = [

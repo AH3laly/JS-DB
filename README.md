@@ -421,3 +421,7 @@ $JSDB->response
 ```
 
 ### [Check Testing Files](https://github.com/Abd0M0hamed/JS-DB/tree/master/testing)
+
+
+- If database field has the noread flag it will not be readable using select
+- if the database field has the nowrite flag it will not be writable using update or delete.

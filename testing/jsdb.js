@@ -3,8 +3,8 @@ JSDB.API = "../../ajax.php";
 JSDB.test = function(){
     var jsdb_query = {
         "command":"insert",
-        "table":"page.View",
-        "values":{"pageId" : 1, "views": 50}
+        "table":"page_View",
+        "values":{"pageId" : "", "views": 50}
     }
     $.ajax({
         url: JSDB.API,

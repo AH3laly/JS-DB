@@ -48,11 +48,14 @@ class Config {
 
         // Table Rules
         "table_rules" => [
-            "user" => ["select", "insert", "update", "delete"]
+            //Available Values: select|insert|update|delete|*
+            "user" => "select|insert|update|delete|*",
+            "page_View" => "select|insert|update|delete"
         ],
 
         // Field Rules
-        "filed_rules" => [
+        // Available Values: required
+        "field_rules" => [
             "user.id"=>"required|is-number|min-number:1",
             "user.name"=>"required|is-character|min-length:10|max-length:50",
         ]
@@ -60,18 +63,20 @@ class Config {
         
     ];
     
-    private static $table_rules;
-    private static $field_rules;
+    private static $table_rules = null;
+    private static $field_rules = null;
 
-    private static function initialize(){
-
+    public static function initialize(){
+        
         // Extract Table Rules to Array
-        if(!is_array(self::$table_rules)){
-            self::$table_rules = [];
-            array_walk(function($v, $k){
-                self::$table_rules[$k] = explode("|", $v);
+        /*if(self::$table_rules === null){
+            self::$table_rules = array_map(function($v, $k){
+                return [$k => explode("|", $v)];
             }, self::$configuration["table_rules"]);
         }
+        print_r(self::$table_rules);
+        exit;
+        */
     }
 
     public static function isDebugMode(){
@@ -80,36 +85,12 @@ class Config {
     public static function isTestingMode(){
         return self::get("testing_mode");
     }
-    public static function isReadProtectedTable($table){
+    /*public static function isReadProtectedTable($table){
         return in_array($table, self::$configuration["db_read_protected_tables"]);
-    }
-    public static function isWriteProtectedTable($table){
+    }*/
+    /*public static function isWriteProtectedTable($table){
         return in_array($table, self::$configuration["db_write_protected_tables"]);
-    }
-    public static function isInsertAllowed($table){
-        if(!is_array(self::$table_rules[$table])){
-            return false;
-        }
-        return in_array("insert", self::$table_rules[$table]);
-    }
-    public static function isSelectAllowed($table){
-        if(!is_array(self::$table_rules[$table])){
-            return false;
-        }
-        return in_array("select", self::$table_rules[$table]);
-    }
-    public static function isUpdateAllowed($table){
-        if(!is_array(self::$table_rules[$table])){
-            return false;
-        }
-        return in_array("update", self::$table_rules[$table]);
-    }
-    public static function isDeleteAllowed($table){
-        if(!is_array(self::$table_rules[$table])){
-            return false;
-        }
-        return in_array("delete", self::$table_rules[$table]);
-    }
+    }*/
     public static function get($key){
         return self::$configuration[$key];
     }
@@ -360,11 +341,76 @@ class SchemaValidation {
         if(!is_array($columns)){
             throw new \Exception("Invalid columns assignment.");
         }
-        array_walk(function($v){
+        array_walk($columns, function($v){
             if(!preg_match("/^[a-zA-Z0-9_]+$/", $v)){
                 throw new \Exception("Bad columns name {$v}, Valid: Caracters Numbers _");
             }
-        }, $columns);
+        });
+    }
+
+    public function getTableRules($table){
+        if(!array_key_exists($table, Config::get("table_rules"))){
+            return [];
+        }
+        return explode("|", Config::get("table_rules")[$table]);
+    }
+    public function validateFields($fields, $operation){
+        switch($operation){
+            case 'select':
+            break;
+            
+            case 'insert':
+            break;
+            
+            case 'update':
+            break;
+
+            case 'delete':
+            break;
+        }
+    }
+    public function getFieldRules($table, $fields){
+        
+        if($table==""){
+            throw new \Exception("Table name required.");
+        }
+        $fieldRules = [];
+        array_walk($fields, function($field) use ($table, &$fieldRules){
+            $fullFieldName = $table.".".$field;
+            if(array_key_exists($fullFieldName, Config::get("field_rules"))){
+                $fieldRules[$fullFieldName] = explode("|", Config::get("field_rules")[$fullFieldName]);
+            }
+        });
+
+        return $fieldRules;
+    }
+    public function isInsertAllowed($table){
+        $tableRules = $this->getTableRules($table);
+        if(in_array("*", $tableRules) || in_array("insert", $tableRules)){
+            return true;
+        }
+        return false;
+    }
+    public function isSelectAllowed($table){
+        $tableRules = $this->getTableRules($table);
+        if(in_array("*", $tableRules) || in_array("select", $tableRules)){
+            return true;
+        }
+        return false;
+    }
+    public function isUpdateAllowed($table){
+        $tableRules = $this->getTableRules($table);
+        if(in_array("*", $tableRules) || in_array("update", $tableRules)){
+            return true;
+        }
+        return false;
+    }
+    public function isDeleteAllowed($table){
+        $tableRules = $this->getTableRules($table);
+        if(in_array("*", $tableRules) || in_array("delete", $tableRules)){
+            return true;
+        }
+        return false;
     }
 
 }
@@ -434,6 +480,9 @@ class Schema extends Core {
             throw new \Exception("Error locking the Database");
         }
     }
+    /**
+     * Write chnges to the Database file
+     */
     private function commit(){
         if(!file_put_contents($this->database_file, json_encode($this->database))){
             throw new \Exception("Database file is not writable, Make sure JSDB_DATA is writable.");
@@ -525,14 +574,20 @@ class Schema extends Core {
             }                
         }
     }
+    /**
+     * Set the table to execute the query against
+     */
     public function table($table){
-        $this->schema_validator->validateTableName($table)
+        $this->schema_validator->validateTable($table);
         $this->reset();
         $this->table = $table;
         return $this;
     }
+    /**
+     * 
+     */
     public function columns($columns){
-        $this->schema_validator->validateColumns($columns)
+        $this->schema_validator->validateColumns($columns);
         $this->columns = $columns;
         return $this;
     }
@@ -563,7 +618,7 @@ class Schema extends Core {
         return $this;
     }
     public function insert($values){
-        if(!Config::isInsertAllowed($this->table)){
+        if(!$this->schema_validator->isInsertAllowed($this->table)){
             throw new \Exception("Table ".$this->table." is not insertable.");
         }
         $this->open();
@@ -575,7 +630,7 @@ class Schema extends Core {
         return $this;
     }
     public function update($values){
-        if(!Config::isUpdateAllowed($this->table)){
+        if(!$this->schema_validator->isUpdateAllowed($this->table)){
             throw new \Exception("Table ".$this->table." is not updatable.");
         }
         $this->open();
@@ -600,7 +655,7 @@ class Schema extends Core {
      * @$where array of criteria
      */
     public function select($limit = 100){
-        if(!Config::isSelectAllowed($this->table)){
+        if(!$this->schema_validator->isSelectAllowed($this->table)){
             throw new \Exception("Table ".$this->table." is not readable.");
         }
         $this->open();
@@ -637,7 +692,7 @@ class Schema extends Core {
         return count($this->resultArray);
     }
     public function delete(){
-        if(!Config::isDeleteAllowed($this->table)){
+        if(!$this->schema_validator->isDeleteAllowed($this->table)){
             throw new \Exception("Table ".$this->table." is not deletable.");
         }
         $this->open();
@@ -781,6 +836,7 @@ class API extends JSDB {
     public function __construct(){
         self::authenticate();
         parent::__construct();
+        Config::initialize();
         $this->request = new Request();
         $this->validator = new Validator($this->request);
     }
