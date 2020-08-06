@@ -14,7 +14,7 @@ This is a simple Cloud-Based database solution to handle backend side without ha
 
 ```sh
 cd /var/www/html
-git pull https://github.com/Abd0M0hamed/JS-DB.git ./jsdb
+git pull https://Github.com/AH3laly/JS-DB.git ./jsdb
 # Change apache_daemon_user to the user used by Apache server to execute PHP scripts
 apache_daemon_user=apache
 chown $apache_daemon_user:$apache_daemon_user jsdb -R
@@ -69,7 +69,7 @@ private static $configuration = [
 
 ```sh
 mkdir /opt/jsdb/dev -p
-git clone https://github.com/Abd0M0hamed/JS-DB.git /opt/jsdb/dev
+git clone https://Github.com/AH3laly/JS-DB.git /opt/jsdb/dev
 chmod 777 /opt/jsdb/dev/var/data /opt/jsdb/dev/var/log
 touch /opt/jsdb/Dockerfile
 ```
@@ -96,8 +96,8 @@ CMD ["/scripts/jsdb_server.sh"]
 
 ```sh
 cd /opt/jsdb/
-docker build ./ -t abd0m0hamed/jsdb:dev
-docker run -itd --name JSDB -p 9050:80 -v /opt/jsdb/dev:/var/www/html abd0m0hamed/jsdb:dev
+docker build ./ -t ahelaly/jsdb:dev
+docker run -itd --name JSDB -p 9050:80 -v /opt/jsdb/dev:/var/www/html ahelaly/jsdb:dev
 ```
 
 #### To run the application:
@@ -143,7 +143,7 @@ exit
 docker rm JSDB
 
 # Remove JSDB Docker image
-docker rmi abd0m0hamed/jsdb:dev
+docker rmi ahelaly/jsdb:dev
 ```
 
 
@@ -420,4 +420,4 @@ $JSDB->response
     ->send();
 ```
 
-### [Check Testing Files](https://github.com/Abd0M0hamed/JS-DB/tree/master/testing)
+### [Check Testing Files](https://Github.com/AH3laly/JS-DB/tree/master/testing)
