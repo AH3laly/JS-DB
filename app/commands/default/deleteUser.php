@@ -2,9 +2,9 @@
 /*
 * Project: JS Database. 
 * Description: Simple backend application for Javascript Projects.
-* Author: Abdelrahman Mohamed
-* Contact: Abdo.Tasks@Gmail.Com
-* Contact: https://Github.com/abd0m0hamed
+* Author: Abdelrahman Helaly
+* Contact: AH3laly@gmail.com
+* Contact: https://github.com/AHelaly
 * License: Science not for Monopoly.
 */
 

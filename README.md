@@ -14,7 +14,7 @@ This is a simple Cloud-Based database solution to handle backend side without ha
 
 ```sh
 cd /var/www/html
-git pull https://github.com/Abd0M0hamed/JS-DB.git ./jsdb
+git pull https://github.com/AHelaly/JS-DB.git ./jsdb
 # Change apache_daemon_user to the user used by Apache server to execute PHP scripts
 apache_daemon_user=apache
 chown $apache_daemon_user:$apache_daemon_user jsdb -R
@@ -69,7 +69,7 @@ private static $configuration = [
 
 ```sh
 mkdir /opt/jsdb/dev -p
-git clone https://github.com/Abd0M0hamed/JS-DB.git /opt/jsdb/dev
+git clone https://github.com/AHelaly/JS-DB.git /opt/jsdb/dev
 chmod 777 /opt/jsdb/dev/var/data /opt/jsdb/dev/var/log
 touch /opt/jsdb/Dockerfile
 ```
@@ -420,7 +420,7 @@ $JSDB->response
     ->send();
 ```
 
-### [Check Testing Files](https://github.com/Abd0M0hamed/JS-DB/tree/master/testing)
+### [Check Testing Files](https://github.com/AHelaly/JS-DB/tree/master/testing)
 
 
 - If database field has the noread flag it will not be readable using select
