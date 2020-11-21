@@ -4,7 +4,8 @@ Many JavaScript projects requires server side Project to retain data,
 
 This is a simple Cloud-Based database solution to handle backend side without having to build complete backend application.
 ```diff
-- We Recommend using this project for international system communications, It's not ready yet for public networks, as we still working on Authentication features.
+- We Recommend using this project for international system communications,
+- It's not ready yet for public networks, as we still working on Authentication features.
 ```
 # Getting Started
 
